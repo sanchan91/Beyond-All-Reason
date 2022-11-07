@@ -44,6 +44,10 @@ return {
     name = 'ChickensAI',
     desc = 'Chicken Defence'
   },
+  {
+    name = 'VoidstalkersAI',
+    desc = 'Voidstalker Offense'
+  },
 }
 
 --------------------------------------------------------------------------------

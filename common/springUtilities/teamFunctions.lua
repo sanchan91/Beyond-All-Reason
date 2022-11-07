@@ -8,7 +8,7 @@ local function getSettings()
 	end
 
 	local teamCount, playerCount = 0, 0
-	local isSinglePlayer, is1v1, isTeams, isBigTeams, isSmallTeams, isChickens, isScavengers, isPvE, isCoop, isFFA, isSandbox = false, false, false, false, false, false, false, false, false, false, false
+	local isSinglePlayer, is1v1, isTeams, isBigTeams, isSmallTeams, isChickens, isScavengers, isVoidstalkers, isPvE, isCoop, isFFA, isSandbox = false, false, false, false, false, false, false, false, false, false, false
 
 	local gaiaAllyTeamID = select(6, Spring.GetTeamInfo(Spring.GetGaiaTeamID(), false))
 	local allyTeamList = Spring.GetAllyTeamList()
@@ -42,6 +42,9 @@ local function getSettings()
 					elseif luaAI:find("Scavengers") then
 						isScavengers = true
 						isAllyTeamValid = false
+					elseif luaAI:find("Voidstalkers") then
+						isVoidstalkers = true
+						isAllyTeamValid = false
 					end
 				end
 			end
@@ -71,7 +74,7 @@ local function getSettings()
 	isSinglePlayer = playerCount == 1
 	isSmallTeams = isTeams and isSmallTeams
 	isBigTeams = isTeams and not isSmallTeams
-	isPvE = isChickens or isScavengers
+	isPvE = isChickens or isScavengers or isVoidstalkers
 
 	if teamCount > 2 then
 		isFFA = true
@@ -97,6 +100,7 @@ local function getSettings()
 		isSmallTeams = isSmallTeams,
 		isChickens = isChickens,
 		isScavengers = isScavengers,
+		isVoidstalkers = isVoidstalkers,
 		isPvE = isPvE,
 		isCoop = isCoop,
 		isFFA = isFFA,
@@ -117,6 +121,7 @@ return {
 		IsSmallTeams   = function () return getSettings().isSmallTeams   end,
 		IsChickens     = function () return getSettings().isChickens     end,
 		IsScavengers   = function () return getSettings().isScavengers   end,
+		IsVoidstalkers = function () return getSettings().isVoidstalkers end,
 		IsPvE          = function () return getSettings().isPvE          end,
 		IsCoop         = function () return getSettings().isCoop         end,
 		IsFFA          = function () return getSettings().isFFA          end,
