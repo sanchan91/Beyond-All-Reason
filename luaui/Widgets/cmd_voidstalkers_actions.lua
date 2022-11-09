@@ -26,20 +26,74 @@ end
 
 
 ---------
+-- Varibales / Constants
+
+local constants = {}
+constants.savePath = "Voidstalkers"
+constants.saveFilename = "voidstate.lua"
+
+local voidState = {}
+
+---------
 -- Utilities
 local function VoidEcho(...)
 	Spring.Echo("VoidEcho: Widget: ",...)
 end
 
+local function GetBlankVoidState()
+	return {
+		archonAbilities = "",
+		archonAbilitiesLeveLs = "",
+		archonLevel = "",
+		voidLevel = ""
+	}
+end
+
+
 ---------
 -- Systems
 
+local commandStatePrint = function()
+	VoidEcho("commandStatePrint")
+	Spring.Debug.TableEcho(voidState)
+end
+
+local commandStateReset = function()
+	VoidEcho("commandStateReset")
+
+end
+
+local commandStateTransmit = function()
+	VoidEcho("commandStateTransmit")
+	-- Responsible for packaging voidState
+	-- Sending it over the network for the listener at voidstalkers_spawner_offense.lua
+	local voidStateJson = Json.encode(voidState)
+	-- See now, Spring.SendCommands does NOT send what playerID this is coming from
+	-- But, Spring.SendLuaRulesMsg(msg) will send this with the playerID as an argument to Spring.RecvLuaMsg(msg,playerID)
+	Spring.SendLuaRulesMsg("voidstalkers voidstate "..voidStateJson)
+end
+
 local commandStateLoad = function()
 	VoidEcho("commandStateLoad")
+	
+	--VFS.Include will return a lua table, which can be assigned to a table
+	local tempVoidState = nil
+	local success, err = pcall(function()  tempVoidState = VFS.Include(constants.savePath.."/"..constants.saveFilename) end)
+	
+	if not success then
+		Spring.Log(widget:GetInfo().name, LOG.ERROR, "Error loading voidState from " .. constants.savePath.."/"..constants.saveFilename.. " with error " .. err)
+		return
+	end
+
+	voidState = tempVoidState
+
+	VoidEcho(Json.encode(voidState))
 end
 
 local commandStateSave = function()
 	VoidEcho("commandStateSave")
+	Spring.CreateDir(constants.savePath)
+	table.save(voidState, constants.savePath.."/"..constants.saveFilename)
 end
 
 local commandArchonGive = function(inUnitName)
@@ -57,11 +111,14 @@ local commandVoidLevel = function(inNumber)
 end
  
 local voidCommands = {}
-voidCommands["state load"] = commandStateLoad
-voidCommands["state save"] = commandStateSave
-voidCommands["archon give"] = commandArchonGive
-voidCommands["archon level"] = commandArchonLevel 
-voidCommands["void level"] = commandVoidLevel
+voidCommands["voidstalkers state print"] = commandStatePrint
+voidCommands["voidstalkers state reset"] = commandStateReset
+voidCommands["voidstalkers state load"] = commandStateLoad
+voidCommands["voidstalkers state save"] = commandStateSave
+voidCommands["voidstalkers state transmit"] = commandStateTransmit
+voidCommands["voidstalkers archon give"] = commandArchonGive
+voidCommands["voidstalkers archon level"] = commandArchonLevel 
+voidCommands["voidstalkers void level"] = commandVoidLevel
 
 
 ---------
@@ -72,7 +129,7 @@ local events = {}
 events.TextCommand = function(_,inCommand)
 	--Grab the command from the string
 	-- and remember that match can return multiple values -> --local key, value = string.match("Bob = Sam", "(%a+)%s*=%s*(%a+)")
-	local commandText,commandArgs = string.match(inCommand,"^voidstalkers (%a+ %a+) (%S+)")
+	local commandText,commandArgs = string.match(inCommand,"^(%a+ %a+ %a+) (%S*)")
 	local commandFunction = voidCommands[commandText]
 
 	--Check if this command is registered
@@ -86,10 +143,19 @@ events.TextCommand = function(_,inCommand)
 	
 end
 
+events.Initialize = function()
+
+	-- Reset the void state, load it, then transmit it to the listening gadget
+	commandStateReset()
+	commandStateLoad()
+	commandStateTransmit()
+end
+
 ---------
 -- Call-ins
 
 widget.TextCommand = events.TextCommand 
+widget.Initialize = events.Initialize
 
 
 

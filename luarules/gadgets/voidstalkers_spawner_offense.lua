@@ -25,7 +25,7 @@ end
 -- 4. STATIC variable declarations that do not change common to both SYNCED and UNSYNCED?
 
 local function VoidEcho(...)
-	Spring.Echo("VoidEcho: ",...)
+	Spring.Echo("VoidEcho: Gadget",...)
 end
 
 ----------------------
@@ -86,6 +86,7 @@ if gadgetHandler:IsSyncedCode() then
 
 	local systems = {}
 
+	systems.TestSystemsMessage = function() VoidEcho("TestSystemsMessage") end
 	-------------------------
 	-- Events
 
@@ -131,16 +132,63 @@ if gadgetHandler:IsSyncedCode() then
 
 	-----------------------------
 	-- Communications
-	events.RecvLuaMsg = function(_,msg, playerID)
-		VoidEcho("Communications...")
-		VoidEcho("comms = "..msg.. " / "..playerID)
+	
+	communicationLoadVoidState = function(inPlayerID, inPayload)
+		VoidEcho("communicationLoadVoidState")
+		VoidEcho(inPlayerID, inPayload)
+		local tempVoidState = Json.decode(inPayload)
+		Spring.Debug.TableEcho(tempVoidState)
+	end
+
+	local recvLuaMsgFunctions = {}
+	recvLuaMsgFunctions["voidstalkers voidstate"] = communicationLoadVoidState
+	
+	events.RecvLuaMsg = function(_,inMsg, inPlayerID)
+		
+		VoidEcho("lua msg comms = "..inMsg.. " / "..inPlayerID)
+
+		local recvLuaMsgText,recvLuaMsgArgs = string.match(inMsg,"^(%a+ %a+) (.*)$")
+
+		local recvLuaMsgFunction = recvLuaMsgFunctions[recvLuaMsgText]
+
+		VoidEcho(recvLuaMsgText,recvLuaMsgArgs,recvLuaMsgFunction)
+		--Check if this command is registered
+		if not recvLuaMsgFunction then return end
+
+		--Call the function
+		recvLuaMsgFunction(inPlayerID, recvLuaMsgArgs)
+		
 	end
 	------------------------------
 	-- Main Loop
+	local mainLoopEvents = {}
 
+	local mainLoopRepeatingEvents = {}
+	mainLoopRepeatingEvents[30] = {systems.TestSystemsMessage}
+	mainLoopRepeatingEvents[60] = {systems.TestSystemsMessage,systems.TestSystemsMessage}
+	mainLoopRepeatingEvents[90] = {systems.TestSystemsMessage,systems.TestSystemsMessage,systems.TestSystemsMessage}
+	--mainLoopRepeatingEvents[90] = function() VoidState(90) end
+	 
+	local loopedFrame = 0
 	events.GameFrame = function(_,frame)
-				
-		VoidEcho("Gameframe "..frame)		
+		loopedFrame = frame % 1800 -- the frames loop every minute
+
+		--check if repeating events has functions to call and add them to the end of the main loop events
+		if mainLoopRepeatingEvents[loopedFrame] then 
+			for i=1, #mainLoopRepeatingEvents[loopedFrame] do
+					table.insert(mainLoopEvents,mainLoopRepeatingEvents[loopedFrame][i])
+			end
+		end
+
+		--check if we have any events to run
+		if not mainLoopEvents then return end
+
+		--loop over the events
+		for i=1, #mainLoopEvents do	mainLoopEvents[i]() end
+		
+		--Clear the main loop events
+		 mainLoopEvents = {}
+		--VoidEcho("Gameframe ",frame)		
 	end
 
 	---------------

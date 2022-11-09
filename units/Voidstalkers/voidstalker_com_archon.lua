@@ -1,5 +1,5 @@
 return {
-	voidstalker_comprotector = {
+	voidstalker_com_archon = {
 		acceleration = 0.111,
 		blocking = false,
 		brakerate = 0.111,
@@ -32,10 +32,10 @@ return {
 		maxwaterdepth = 0,
 		mincloakdistance = 300,
 		nochasecategory = "VTOL",
-		objectname = "Voidstalkers/voidstalker_comprotector.s3o",
+		objectname = "Voidstalkers/voidstalker_com_archon.s3o",
 		releaseheld  = true,
 		repairspeed = 1000,
-		script = "Voidstalkers/voidstalker_comprotector.lua",
+		script = "Voidstalkers/voidstalker_com_archon.lua",
 		seismicsignature = 0,
 		selfdestructas = "smallExplosionGenericSelfd",
 		sightdistance = 100,
