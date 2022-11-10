@@ -10,7 +10,7 @@
 	include "animation.lua"
 
 
-function animShadow(getid, getpiece)
+function animLight(getid, getpiece)
 	local id=getid
 	local piece=getpiece
 	local last_inbt = true
@@ -28,8 +28,8 @@ function animShadow(getid, getpiece)
 					while (true) do
 						x, y, z = Spring.GetUnitPosition(unitID)
 						-- local x,y,z,dx,dy,dz	= Spring.GetUnitPiecePosDir(unitID, pieceName)
-						Spring.SpawnCEG("shadowsmoke", x, y+10, z)
-						Sleep(200)
+						Spring.SpawnCEG("archonsmoke", x, y+10, z)
+						Sleep(500)
 					end
 				end
 			end
@@ -64,7 +64,7 @@ function animHover(getId)
 end
 
 function script.Create()
-	--StartThread(animShadow, unitID, smokespot)
+	--StartThread(animLight, unitID, smokespot)
 	--StartThread(animHover, unitID)
 	
 end

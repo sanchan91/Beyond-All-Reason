@@ -46,6 +46,8 @@ end
 --     N units\Voidstalkers\*
 --     N scripts\Voidstalkers\*
 --     N unittextures\<list files>
+-- 	   N effects\Voidstalkers\shadowsmoke.lua
+--	   N effects\Voidstalkers\archonsmoke.lua
 --
 --   *UI related: (New or Existing)
 --     N luaui\Widgets\gui_voidstalkers_info.lua <-- this is like the scav information panel that pops up when you run scavs for the first time
@@ -66,6 +68,11 @@ if not Spring.Utilities.Gametype.IsVoidstalkers() then return false end
 VoidEcho("Voidstalkers are Online!")
 
 
+-----
+-- TESTING STUFF
+local arm_peewee = {type = 0,  action = "buildunit_armpw", id = -UnitDefNames["armpw"].id, tooltip = "This is a custom tooltip", cursor = "armpw", showUnique = true, params = {1}, name = "armpw", onlyTexture = true, disabled = false, hidden = false, queueing = false, texture = "" }
+	
+
 
 ------------------------------------
 -- SYNCED
@@ -74,6 +81,11 @@ VoidEcho("Voidstalkers are Online!")
 if gadgetHandler:IsSyncedCode() then
 ------------------------------------
 
+	-------------------------
+	-- Variables
+	local vars = {}
+
+	vars.teamArchonUnitIds = {}
 	
 	-------------------------
 	-- Utilities
@@ -81,12 +93,156 @@ if gadgetHandler:IsSyncedCode() then
 	local utilities = {}
 	
 	utilities.GetAllNonStartUnitsForTeam = function(team) end
+
+	-------------------------
+	-- "Archon Abilities" - these are actually just systems but named so I can remember that they link to a thing
+	-- before getting too existed, the ability names are actually unit names that get InsertUnitCmdDesc to the archon
+	-- the gui build menu thinks these are units the archon can "build" but since these do not explicitly exist in the buidOptions of the archon
+	-- clicking on one of these to "build" does nothing in the engine
+	-- however, I can trap for the UnitDefID passed to UnitCommand and get the UnitDefID[id].name out of it to link into the abilities table
+	-- and call the corresponding function as if something happened
+	
+	local abilityDesc = {type = 0,  action = "buildunit_armpw", id = -UnitDefNames["armpw"].id, tooltip = "", cursor = "", showUnique = true, params = {1}, name = "armpw", onlyTexture = true, disabled = false, hidden = false, queueing = false, texture = "" }
+
+
+	local abilities = {}
+
+	local testThread = function() VoidEcho("test thread") end
+	abilities["voidstalker_ability_b1"] = function(inUnitTeamId) 
+		-- spawn 10 armpw
+		local posx,posy,posz = Spring.GetUnitPosition( vars.teamArchonUnitIds[inUnitTeamId] )
+		for i = 1, 10 do
+			Spring.CreateUnit("armpw", posx+math.random(-100,100), posy, posz+math.random(-100,100), 0, inUnitTeamId)
+		end
+	end
+
+	abilities["voidstalker_ability_b2"] = function(inUnitTeamId) 
+		local posx,posy,posz = Spring.GetUnitPosition( vars.teamArchonUnitIds[inUnitTeamId] )
+		Spring.CreateUnit("armwar", posx, posy, posz, 0, inUnitTeamId)
+	end
+	abilities["voidstalker_ability_b3"] = function(inUnitTeamId) end
+	abilities["voidstalker_ability_t1"] = function(inUnitTeamId) end
+	abilities["voidstalker_ability_t2"] = function(inUnitTeamId) end
+	abilities["voidstalker_ability_t3"] = function(inUnitTeamId) end
+	abilities["voidstalker_ability_h1"] = function(inUnitTeamId) end
+	abilities["voidstalker_ability_h2"] = function(inUnitTeamId) end
+	abilities["voidstalker_ability_h3"] = function(inUnitTeamId) end
+
+	abilities.GiveArchonAbility = function(inTeamId,inAbilityName)
+		VoidEcho("Granting archon ability to player ",inTeamId, inAbilityName)
+		
+		local archonUnitId = vars.teamArchonUnitIds[inTeamId]
+		local tempCmdDescIndex = Spring.FindUnitCmdDesc(archonUnitId, -UnitDefNames[inAbilityName].id)
+		
+		-- If the ability already exists, add to it
+		if tempCmdDescIndex then
+			local tempCmdDesc = Spring.GetUnitCmdDescs(archonUnitId, tempCmdDescIndex,tempCmdDescIndex)[1]
+			Spring.Debug.TableEcho(tempCmdDesc)
+
+			Spring.EditUnitCmdDesc(archonUnitId,tempCmdDescIndex,{ params = { tonumber(tempCmdDesc.params[1]) + 1 }, disabled = abilityDisabled })
+
+		else
+		-- if it doesnt exit, then insert it
+			Spring.InsertUnitCmdDesc(vars.teamArchonUnitIds[inTeamId] ,-UnitDefNames[inAbilityName].id,{id = -UnitDefNames[inAbilityName].id, params = {1},action = "buildunit_XXXXX" } )
+		end
+	end
+
+	abilities.CallArchonAbility = function(inAbilityName,inUnitTeamId)
+		-- responsible for managing ability counts and calling the ability
+
+		-- at this time, the gui_buildmenu does not have a way to "force" the icon display to be disabled, the disabled flag will actually hide the icon (there is a .hidden param but it doesnt do anything)
+		-- so we must manually check if there are any charges left on the ability
+
+		
+		
+		-- get the number of charges from param
+		local archonUnitId = vars.teamArchonUnitIds[inUnitTeamId]
+		local tempCmdDescIndex = Spring.FindUnitCmdDesc(archonUnitId, -UnitDefNames[inAbilityName].id)
+		local tempCmdDesc = Spring.GetUnitCmdDescs(archonUnitId, tempCmdDescIndex,tempCmdDescIndex)[1]
+		Spring.Debug.TableEcho(tempCmdDesc)
+
+		-- check if there are charges left
+		if not tonumber(tempCmdDesc.params[1]) then return end
+
+		VoidEcho("Calling ability for team",inAbilityName, inUnitTeamId)
+		
+		-- use and decrease then optionally disable the ability if it has no more charges
+		abilities[inAbilityName](inUnitTeamId)
+
+		local newAbilityUseCount = (tonumber(tempCmdDesc.params[1]) or 0) - 1
+
+		if newAbilityUseCount <= 0 then newAbilityUseCount = "-" end
+
+		Spring.EditUnitCmdDesc(archonUnitId,tempCmdDescIndex,{ params = { newAbilityUseCount } })
+
+
+
+		--  decrease by 1, but if 0 , set it to disabled
+
+	end
+	
+	
+
 	-------------------------
 	-- Systems
 
 	local systems = {}
 
 	systems.TestSystemsMessage = function() VoidEcho("TestSystemsMessage") end
+
+	systems.SpawnCommanderArchons = function()
+			VoidEcho("Spawning commander archons!")
+
+			-- Find all of the commanders across all teams, and give them an archon.
+			local units = Spring.GetAllUnits()
+			for i = 1, #units do
+					if UnitDefs[ Spring.GetUnitDefID(units[i]) ].customParams.iscommander then
+						local commanderUnitId = units[i]
+						local teamId = Spring.GetUnitTeam(commanderUnitId)
+                		local commanderUnitTeam = Spring.GetUnitTeam(commanderUnitId)
+						local posx, posy, posz = Spring.GetUnitPosition(commanderUnitId)
+						local archonUnitId = Spring.CreateUnit("voidstalker_com_archon", posx+math.random(-30,30), posy+50, posz+math.random(-30,39), 0, commanderUnitTeam)
+						
+						vars.teamArchonUnitIds[teamId] = archonUnitId
+						
+						Spring.GiveOrderToUnit(archonUnitId ,CMD.GUARD,commanderUnitId, {})
+						Spring.GiveOrderToUnit(archonUnitId ,CMD.IDLEMODE, { 0 }, { "shift" })
+						Spring.GiveOrderToUnit(archonUnitId ,CMD.MOVE_STATE,{0},0)
+						
+						--Remove all commands the Archon has so that it is glued to the commander
+						local archonCommandsArray = Spring.GetUnitCmdDescs(archonUnitId)
+						for i = 1, #archonCommandsArray do
+							VoidEcho("Removing archon commands ",archonCommandsArray[i].id)
+							Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, archonCommandsArray[i].id))
+						end
+						--Remmove the players ability to give it orders that would break it away from guarding the commander
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.MOVE))
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.GUARD))
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.REPAIR))
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.ATTACK))
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.RECLAIM))
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.STOP))
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.WAIT))
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.RESTORE))
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.FIGHT))
+						--Spring.RemoveUnitCmdDesc(archonUnitId , Spring.FindUnitCmdDesc(archonUnitId, CMD.PATROL))
+
+						--give it starting "abilities"
+						abilities.GiveArchonAbility(teamId,"voidstalker_ability_b1")
+						abilities.GiveArchonAbility(teamId,"voidstalker_ability_b1")
+						abilities.GiveArchonAbility(teamId,"voidstalker_ability_b1")
+						abilities.GiveArchonAbility(teamId,"voidstalker_ability_b1")
+						abilities.GiveArchonAbility(teamId,"voidstalker_ability_b2")
+						abilities.GiveArchonAbility(teamId,"voidstalker_ability_b2")
+						abilities.GiveArchonAbility(teamId,"voidstalker_ability_b2")
+						abilities.GiveArchonAbility(teamId,"voidstalker_ability_b2")
+						--Spring.InsertUnitCmdDesc(archonUnitId ,arm_peewee.id,arm_peewee )
+
+					end
+			end
+
+	end
+
 	-------------------------
 	-- Events
 
@@ -105,6 +261,11 @@ if gadgetHandler:IsSyncedCode() then
 
 	events.GamePreload = function() 
 		VoidEcho("GamePreload...")
+		-- Spawn in commander archons (timed event)
+		events.AddTimedEvent(90,systems.SpawnCommanderArchons)
+
+
+
 		--local voidstate = Spring.GetGameRulesParam('voidstateSave_player0')
 		--VoidEcho("voidstate ="..voidstate)
 		-- Change the terrain
@@ -161,7 +322,11 @@ if gadgetHandler:IsSyncedCode() then
 	end
 	------------------------------
 	-- Main Loop
+	local mainLoopScope = 30 * 60 -- 30 frames is one second, 60 seconds is one minute
+	
 	local mainLoopEvents = {}
+
+	local mainLoopTimedEvents = {}
 
 	local mainLoopRepeatingEvents = {}
 	mainLoopRepeatingEvents[30] = {systems.TestSystemsMessage}
@@ -171,8 +336,17 @@ if gadgetHandler:IsSyncedCode() then
 	 
 	local loopedFrame = 0
 	events.GameFrame = function(_,frame)
-		loopedFrame = frame % 1800 -- the frames loop every minute
+		loopedFrame = frame % mainLoopScope 
 
+		--check if there are one time "timed" events which are cleared after they are used
+		if mainLoopTimedEvents[loopedFrame] then 
+			for i=1, #mainLoopTimedEvents[loopedFrame] do
+					table.insert(mainLoopEvents,mainLoopTimedEvents[loopedFrame][i])
+			end
+			mainLoopTimedEvents[loopedFrame] = {}
+		end
+
+		
 		--check if repeating events has functions to call and add them to the end of the main loop events
 		if mainLoopRepeatingEvents[loopedFrame] then 
 			for i=1, #mainLoopRepeatingEvents[loopedFrame] do
@@ -191,6 +365,37 @@ if gadgetHandler:IsSyncedCode() then
 		--VoidEcho("Gameframe ",frame)		
 	end
 
+	events.AddTimedEvent = function(inFrameTime,inEventFunction) 
+		local repeatFrame = (Spring.GetGameFrame() + inFrameTime) % mainLoopScope
+		VoidEcho("Adding timed event at frame",repeatFrame)
+		--check if this timed frame spot exists, if not, make it
+		if not mainLoopTimedEvents[repeatFrame] then mainLoopTimedEvents[repeatFrame] = {} end
+		
+		--insert the event into the timed event queue
+		table.insert(mainLoopTimedEvents[repeatFrame] , inEventFunction)
+	end
+	
+	----------------
+	-- Commands
+
+	events.UnitCommand = function(_,unitID, unitDefID, unitTeamID, cmdID, cmdParams, cmdOptions, cmdTag, playerID, fromSynced, fromLua) 
+		
+
+		-- check if this is a negative ability
+		if cmdID >= 0 then return end
+
+		-- for those looking at this, the cmdID comes in as negative unitDefId, and negative cmdIDs mean build something from the build menu
+		local abilityName = UnitDefs[-cmdID].name
+
+		VoidEcho("Unit command from unit ", abilityName)
+		if abilities[ abilityName ] then 
+			abilities.CallArchonAbility(abilityName,unitTeamID)
+		end 
+
+	end
+
+	
+	
 	---------------
 	-- SYNCED CALLINS
 	--
@@ -223,9 +428,9 @@ if gadgetHandler:IsSyncedCode() then
 	function gadget:FeatureCreated(featureID, allyTeam) end
 
 	-- COMMANDS
-	function gadget:AllowCommand(unitID, unitDefID, teamID, cmdID, cmdParams, cmdOptions, cmdTag, playerID, fromSynced, fromLua) return true	end
-	function gadget:UnitCommand(unitID, unitDefID, unitTeamID, cmdID, cmdParams, cmdOptions, cmdTag, playerID, fromSynced, fromLua) end
-	function gadget:UnitCmdDone(unitID, unitDefID, unitTeam, cmdID, cmdParams, cmdOpts, cmdTag) end
+	--function gadget:AllowCommand(unitID, unitDefID, teamID, cmdID, cmdParams, cmdOptions, cmdTag, playerID, fromSynced, fromLua) return true	end
+	gadget.UnitCommand = events.UnitCommand
+	--function gadget:UnitCmdDone(unitID, unitDefID, unitTeam, cmdID, cmdParams, cmdOpts, cmdTag) end
 
 	-- TEAMS
 	function gadget:TeamDied(teamID) end 	
