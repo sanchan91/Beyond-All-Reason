@@ -4,3 +4,5 @@
 .vscode/
 .project
 *.code-workspace
+luarules/gadgets/voidstalkers_test_synced.lua
+luarules/gadgets/voidstalkers_test_unsynced.lua

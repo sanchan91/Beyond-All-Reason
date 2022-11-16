@@ -43,9 +43,12 @@ end
 local function GetBlankVoidState()
 	return {
 		archonAbilities = "",
-		archonAbilitiesLeveLs = "",
-		archonLevel = "",
-		voidLevel = ""
+		archonSummons = "",
+		archonAbilitiesLevels = "",
+		archonSummonsLevels = "",
+		archonExp = "0",
+		archonLevel = "1",
+		voidLevel = "1"
 	}
 end
 
