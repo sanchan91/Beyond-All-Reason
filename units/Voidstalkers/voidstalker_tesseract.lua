@@ -45,7 +45,6 @@ return {
 		customparams = {
 			nohealthbars = true,
 			model_author = "bob",
-			iscommander = true,
 			
 		},
 		

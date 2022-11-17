@@ -326,17 +326,20 @@ if gadgetHandler:IsSyncedCode() then
 	}
 	local namelistChicken = {'Alien Raptors'}
 	local namelistScavengers = {'Scavengers'}
+	local namelistVoidstalkers = {'Voidstalkers'}
 
 	local takenNames = {}
 	local takenNamesChicken = {}
 
-	function getName(teamID, chicken, scavenger)
+	function getName(teamID, chicken, scavenger, voidstalkers)
 		local aiName
 		if chicken then
 			aiName = namelistChicken[math.random(1,#namelistChicken)]
 		elseif scavenger then
 			aiName = namelistScavengers[math.random(1,#namelistScavengers)]
-		else
+		elseif voidstalkers then
+			aiName = namelistVoidstalkers[math.random(1,#namelistVoidstalkers)]
+		else	
 			aiName = namelist[math.random(1,#namelist)]
 		end
 		if chicken and takenNamesChicken[aiName] == nil then
@@ -359,7 +362,7 @@ if gadgetHandler:IsSyncedCode() then
 				if select(4,Spring.GetAIInfo(teamID)) == 'NullAI' then	-- doesnt seem to work
 					Spring.SetGameRulesParam('ainame_'..teamID, 'NullAI (idle)')
 				else
-					Spring.SetGameRulesParam('ainame_'..teamID, getName(teamID, string.find(Spring.GetTeamLuaAI(teamID) or '', "Chickens"), string.find(Spring.GetTeamLuaAI(teamID) or '', "Scavenger")))
+					Spring.SetGameRulesParam('ainame_'..teamID, getName(teamID, string.find(Spring.GetTeamLuaAI(teamID) or '', "Chickens"), string.find(Spring.GetTeamLuaAI(teamID) or '', "Scavenger"),string.find(Spring.GetTeamLuaAI(teamID) or '', "Voidstalkers")))
 				end
 			end
 		end
