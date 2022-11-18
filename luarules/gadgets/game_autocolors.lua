@@ -20,6 +20,7 @@ local armBlueColor       = "#004DFF" -- Armada Blue
 local corRedColor        = "#FF1005" -- Cortex Red
 local scavPurpColor      = "#6809A1" -- Scav Purple
 local chickenOrangeColor = "#CC8914" -- Chicken Orange
+local voidBlackColor     = "#0A0A0A" -- Void Black
 local gaiaGrayColor      = "#7F7F7F" -- Gaia Grey
 
 if gadgetHandler:IsSyncedCode() then
@@ -625,6 +626,10 @@ if gadgetHandler:IsSyncedCode() then
 			Spring.SetTeamRulesParam(teamID, "AutoTeamColorRed", hex2RGB(chickenOrangeColor)[1])
 			Spring.SetTeamRulesParam(teamID, "AutoTeamColorGreen", hex2RGB(chickenOrangeColor)[2])
 			Spring.SetTeamRulesParam(teamID, "AutoTeamColorBlue", hex2RGB(chickenOrangeColor)[3])
+		elseif isAI and string.find(isAI, "Voidstalkers") then
+			Spring.SetTeamRulesParam(teamID, "AutoTeamColorRed", hex2RGB(voidBlackColor)[1])
+			Spring.SetTeamRulesParam(teamID, "AutoTeamColorGreen", hex2RGB(voidBlackColor)[2])
+			Spring.SetTeamRulesParam(teamID, "AutoTeamColorBlue", hex2RGB(voidBlackColor)[3])
 		elseif teamID == gaiaTeamID then
 			Spring.SetTeamRulesParam(teamID, "AutoTeamColorRed", hex2RGB(gaiaGrayColor)[1])
 			Spring.SetTeamRulesParam(teamID, "AutoTeamColorGreen", hex2RGB(gaiaGrayColor)[2])
@@ -710,6 +715,7 @@ else	-- UNSYNCED
 		corred        = corRedColor,
 		scavpurp      = scavPurpColor,
 		chickenorange = chickenOrangeColor,
+		voidblack     = voidBlackColor,
 		gaiagray      = gaiaGrayColor,
 	}
 	local iconDevMode = Spring.GetModOptions().teamcolors_icon_dev_mode

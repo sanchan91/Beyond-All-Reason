@@ -244,6 +244,16 @@ function HandleTestSystemsMessage()
 	VoidEcho("TestSystemsMessage")
 end
 
+function HandleGlobalLOS()
+	
+	local allyteams = Spring.GetAllyTeamList()
+	for i = 1,#allyteams do
+		Spring.SetGlobalLos(allyteams[i], true)
+	end
+
+end
+
+
 function HandleSetupPlayersVsAI() 
 
 	-- identify the gaia team id
@@ -376,7 +386,9 @@ function HandleDestroyMissionCreation()
 
 	vars.missionState.eventGamePreload = function() 
 		VoidEcho("Destroy Mission Game Preload")
-		Spring.CreateUnit("armbanth", Game.mapSizeX/2,300,Game.mapSizeZ/2, 0, vars.voidState.voidstalkersTeamId)
+		vars.missionState.missionTargetUnitId = Spring.CreateUnit("armbanth", 1000,300,3000, 0, vars.voidState.voidstalkersTeamId)
+		Spring.SetUnitAlwaysVisible(vars.missionState.missionTargetUnitId,true)	
+		Spring.SetUnitLosState(vars.missionState.missionTargetUnitId,vars.teamAllyTeamId,{los=true, prevLos=true, contRadar=true, radar=true}) 
 		
 	end
 	vars.missionState.eventGameStart = function() end
@@ -400,7 +412,9 @@ function HandleProtectMissionCreation()
 	vars.missionState.lore = "The thingie is here, it must be vaporized!"
 	vars.missionState.eventGamePreload = function() 
 		VoidEcho("Protect Mission Game Preload")
-		Spring.CreateUnit("armbanth", Game.mapSizeX/2,300,Game.mapSizeZ/2, 0, vars.baseState.gaiaTeamId)
+		vars.missionState.missionTargetUnitId = Spring.CreateUnit("armbanth",1000,300,3000, 0, vars.baseState.gaiaTeamId)
+		Spring.SetUnitAlwaysVisible(vars.missionState.missionTargetUnitId,true)	
+		Spring.SetUnitLosState(vars.missionState.missionTargetUnitId,vars.teamAllyTeamId,{los=true, prevLos=true, contRadar=true, radar=true}) 
 	end
 	vars.missionState.eventGameStart = function() end
 	vars.missionState.eventGameFrame = function() end
@@ -410,11 +424,24 @@ function HandleProtectMissionCreation()
 
 end
 
+function HandleMapTerraform()
+
+	Spring.LevelHeightMap(0,0,Game.mapSizeX,Game.mapSizeZ,300)
+end
+
 function HandleBaseSpawn()
 
 	local gaiaTeamId = vars.baseState.gaiaTeamId
 
-	vars.baseState.baseUnitId = Spring.CreateUnit("voidstalker_tesseract", Game.mapSizeX/2,300,Game.mapSizeZ/2, math.random(0,3), gaiaTeamId   )	
+	vars.baseState.baseX = Game.mapSizeX/2
+	vars.baseState.baseY = 300
+	vars.baseState.baseZ = Game.mapSizeZ/2
+	
+	
+	vars.baseState.baseUnitId = Spring.CreateUnit("voidstalker_tesseract",vars.baseState.baseX ,vars.baseState.baseY,vars.baseState.baseZ, math.random(0,3), gaiaTeamId   )
+	
+	
+
 	Spring.SetUnitAlwaysVisible(vars.baseState.baseUnitId,true)	
 	--Spring.SetUnitLosMask(vars.baseState.baseUnitId,vars.teamAllyTeamId,{los=true,radar=true}) 
 	Spring.SetUnitLosState(vars.baseState.baseUnitId,vars.teamAllyTeamId,{los=true, prevLos=true, contRadar=true, radar=true}) 
@@ -436,12 +463,54 @@ function HandleBaseSpawn()
 	temp = Spring.CreateUnit("armllt", Game.mapSizeX/2-500,300,Game.mapSizeZ/2-500, math.random(0,3), gaiaTeamId )
 	Spring.SetUnitAlwaysVisible(temp,true)	
 	Spring.SetUnitLosState(temp,vars.teamAllyTeamId,{los=true, prevLos=true, contRadar=true, radar=true}) 
-	
 end
 
 function HandleMissionGamePreload()
 
 	vars.missionState.eventGamePreload()
+
+end
+
+function HandleVoidSpawnPointCalculation()
+	-- During the day, the Voids will spawn at a ray traced from the base, through the mission target, to the edge of the map
+	local missionX, missionY, missionZ = Spring.GetUnitPosition(vars.missionState.missionTargetUnitId)
+	local diffX = missionX - vars.baseState.baseX
+	local diffZ = missionZ - vars.baseState.baseZ
+	local voidSpawnX = missionX+diffX
+	local voidSpawnZ = missionZ+diffZ
+
+	
+	
+	
+end
+
+
+function HandleBaseSpawnPointCalculation()
+
+end
+
+function HandleBaseDaySpawnCycle()
+	if Spring.GetGameFrame() % 5 ~= 0 then return end
+
+	local unitId = 0
+	
+	unitId = Spring.CreateUnit("armpw", vars.baseState.baseX+200, Spring.GetGroundHeight(vars.baseState.baseX+200, vars.baseState.baseZ) , vars.baseState.baseZ, math.random(0,3), vars.baseState.gaiaTeamId )
+	Spring.GiveOrderToUnit(unitId ,CMD.GUARD,vars.missionState.missionTargetUnitId, {})
+	
+end
+
+function HandleVoidDaySpawnCycle()
+	
+	if Spring.GetGameFrame() % 5 ~= 0 then return end
+
+	local missionX, missionY, missionZ = Spring.GetUnitPosition(vars.missionState.missionTargetUnitId)
+	local diffX = missionX - vars.baseState.baseX
+	local diffZ = missionZ - vars.baseState.baseZ
+	local unitId = 0
+	
+	unitId = Spring.CreateUnit("voidstalker_ghost", missionX+diffX, Spring.GetGroundHeight(missionX+diffX, missionZ+diffZ) , missionZ+diffZ, math.random(0,3), vars.voidState.voidstalkersTeamId )
+	Spring.GiveOrderToUnit(unitId ,CMD.GUARD,vars.missionState.missionTargetUnitId, {})
+	
 
 end
 
@@ -479,9 +548,12 @@ function gadget:GamePreload()
 	VoidEcho("GamePreload...")
 	-- Spawn in commander archons (timed event)
 	--systems.AddTimedEvent(90,systems.SpawnCommanderArchons)
+	HandleMapTerraform()
+	HandleGlobalLOS()
 	HandleBaseSpawn()
 	HandleMissionGamePreload()
-
+	HandleVoidSpawnPointCalculation()
+	HandleBaseSpawnPointCalculation()
 
 
 	--local voidstate = Spring.GetGameRulesParam('voidstateSave_player0')
@@ -508,8 +580,8 @@ function gadget:GameFrame(inFrame)
 	-- HandleDayNightCycle
 	-- HandleDayNightNormalEvents
 	-- HandleDayNightRandomEvents
-	-- HandleBaseDaySoawnCycle
-	-- HandleVoidDaySpawnCycle
+	HandleBaseDaySpawnCycle()
+	HandleVoidDaySpawnCycle()
 	-- HandleBaseDuskSpawnCycle
 	-- HandleVoidDuskSpawnCycle
 	-- HandleBaseNightSoawnCycle
