@@ -367,7 +367,8 @@ end
 function HandleMissionSelection()
 	-- Note that this implementation only supports doing one mission per game
 
-	local missionTypes = {"destroy","protect"}
+	--local missionTypes = {"destroy","protect"}
+	local missionTypes = {"destroy"} 
 
 	vars.missionState.type = missionTypes[math.random(1,#missionTypes)]
 
@@ -386,9 +387,20 @@ function HandleDestroyMissionCreation()
 
 	vars.missionState.eventGamePreload = function() 
 		VoidEcho("Destroy Mission Game Preload")
-		vars.missionState.missionTargetUnitId = Spring.CreateUnit("armbanth", 1000,300,3000, 0, vars.voidState.voidstalkersTeamId)
+		vars.missionState.missionTargetUnitId = Spring.CreateUnit("armbanth", Game.mapSizeX/2-1000,300,Game.mapSizeZ/2-1000, 0, vars.voidState.voidstalkersTeamId)
 		Spring.SetUnitAlwaysVisible(vars.missionState.missionTargetUnitId,true)	
 		Spring.SetUnitLosState(vars.missionState.missionTargetUnitId,vars.teamAllyTeamId,{los=true, prevLos=true, contRadar=true, radar=true}) 
+
+		local missionX, missionY, missionZ = Spring.GetUnitPosition(vars.missionState.missionTargetUnitId)
+		
+		local unitId = 0
+		
+		for i=1, 2000 do
+			local newX = missionX + math.random(-1000,1000)
+			local newZ = missionZ + math.random(-1000,1000)
+			unitId = Spring.CreateUnit("voidstalker_ghost", newX, Spring.GetGroundHeight(newX, newZ) , newZ, math.random(0,3), vars.voidState.voidstalkersTeamId )
+			--Spring.GiveOrderToUnit(unitId ,CMD.PATROL,{missionX,missionY,missionZ}, {})
+		end
 		
 	end
 	vars.missionState.eventGameStart = function() end
@@ -426,7 +438,28 @@ end
 
 function HandleMapTerraform()
 
+	--The whole map
 	Spring.LevelHeightMap(0,0,Game.mapSizeX,Game.mapSizeZ,300)
+
+	
+
+	--Room for the base
+	--Spring.LevelHeightMap(Game.mapSizeX/2-500,Game.mapSizeZ/2-500,Game.mapSizeX/2+500,Game.mapSizeZ/2+500,20)
+
+end
+
+function HandleMapReform()
+
+	--This is a test function, remove me at some point
+
+	if Spring.GetGameFrame() % 30 ~= 0 then return end
+
+	local randomX = math.random(200,1000)
+	local randomZ = math.random(200,1000)
+
+	Spring.LevelHeightMap(randomX-20,randomZ-20,randomX+20,randomZ+20,20)
+
+	
 end
 
 function HandleBaseSpawn()
@@ -434,7 +467,7 @@ function HandleBaseSpawn()
 	local gaiaTeamId = vars.baseState.gaiaTeamId
 
 	vars.baseState.baseX = Game.mapSizeX/2
-	vars.baseState.baseY = 300
+	vars.baseState.baseY = 0
 	vars.baseState.baseZ = Game.mapSizeZ/2
 	
 	
@@ -492,10 +525,12 @@ end
 function HandleBaseDaySpawnCycle()
 	if Spring.GetGameFrame() % 5 ~= 0 then return end
 
+	local missionX, missionY, missionZ = Spring.GetUnitPosition(vars.missionState.missionTargetUnitId)
+	
 	local unitId = 0
 	
 	unitId = Spring.CreateUnit("armpw", vars.baseState.baseX+200, Spring.GetGroundHeight(vars.baseState.baseX+200, vars.baseState.baseZ) , vars.baseState.baseZ, math.random(0,3), vars.baseState.gaiaTeamId )
-	Spring.GiveOrderToUnit(unitId ,CMD.GUARD,vars.missionState.missionTargetUnitId, {})
+	Spring.GiveOrderToUnit(unitId ,CMD.PATROL,{missionX,missionY,missionZ}, {})
 	
 end
 
@@ -504,12 +539,12 @@ function HandleVoidDaySpawnCycle()
 	if Spring.GetGameFrame() % 5 ~= 0 then return end
 
 	local missionX, missionY, missionZ = Spring.GetUnitPosition(vars.missionState.missionTargetUnitId)
-	local diffX = missionX - vars.baseState.baseX
-	local diffZ = missionZ - vars.baseState.baseZ
+	local newX = missionX + math.random(-100,100)
+	local newZ = missionZ + math.random(-100,100)
 	local unitId = 0
 	
-	unitId = Spring.CreateUnit("voidstalker_ghost", missionX+diffX, Spring.GetGroundHeight(missionX+diffX, missionZ+diffZ) , missionZ+diffZ, math.random(0,3), vars.voidState.voidstalkersTeamId )
-	Spring.GiveOrderToUnit(unitId ,CMD.GUARD,vars.missionState.missionTargetUnitId, {})
+	unitId = Spring.CreateUnit("voidstalker_ghost", newX, Spring.GetGroundHeight(newX, newZ) , newZ, math.random(0,3), vars.voidState.voidstalkersTeamId )
+	--Spring.GiveOrderToUnit(unitId ,CMD.PATROL,{missionX,missionY,missionZ}, {})
 	
 
 end
@@ -549,7 +584,7 @@ function gadget:GamePreload()
 	-- Spawn in commander archons (timed event)
 	--systems.AddTimedEvent(90,systems.SpawnCommanderArchons)
 	HandleMapTerraform()
-	HandleGlobalLOS()
+	--HandleGlobalLOS()
 	HandleBaseSpawn()
 	HandleMissionGamePreload()
 	HandleVoidSpawnPointCalculation()

@@ -89,8 +89,11 @@ local arm_peewee = {type = 0,  action = "buildunit_armpw", id = -UnitDefNames["a
 
 -- GAME STARTUP AND END
 function gadget:Initialize() end
+
 function gadget:GamePreload() end
+
 function gadget:GameStart() end
+
 function gadget:GameOver() end
 
 -- GAME MAIN LOOP
