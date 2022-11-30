@@ -294,6 +294,9 @@ function HandleSetupPlayersVsAI()
 		end
 	end
 	
+	
+	
+
 	-- If more than one Voidstalker AIs exist, destroy the remaining ones
 end
 
@@ -316,6 +319,8 @@ function HandleCommanderArchons()
 	local units = Spring.GetAllUnits()
 	for i = 1, #units do
 		if UnitDefs[ Spring.GetUnitDefID(units[i]) ].customParams.iscommander then
+
+			
 			local commanderUnitId = units[i]
 			local teamId = Spring.GetUnitTeam(commanderUnitId)
 			local posx, posy, posz = Spring.GetUnitPosition(commanderUnitId)
@@ -394,13 +399,14 @@ function HandleDestroyMissionCreation()
 		local missionX, missionY, missionZ = Spring.GetUnitPosition(vars.missionState.missionTargetUnitId)
 		
 		local unitId = 0
-		
+		--[[
 		for i=1, 2000 do
 			local newX = missionX + math.random(-1000,1000)
 			local newZ = missionZ + math.random(-1000,1000)
 			unitId = Spring.CreateUnit("voidstalker_ghost", newX, Spring.GetGroundHeight(newX, newZ) , newZ, math.random(0,3), vars.voidState.voidstalkersTeamId )
 			--Spring.GiveOrderToUnit(unitId ,CMD.PATROL,{missionX,missionY,missionZ}, {})
 		end
+		]]
 		
 	end
 	vars.missionState.eventGameStart = function() end
@@ -471,10 +477,9 @@ function HandleBaseSpawn()
 	vars.baseState.baseZ = Game.mapSizeZ/2
 	
 	
-	vars.baseState.baseUnitId = Spring.CreateUnit("voidstalker_tesseract",vars.baseState.baseX ,vars.baseState.baseY,vars.baseState.baseZ, math.random(0,3), gaiaTeamId   )
-	
-	
-
+	vars.baseState.baseUnitId = Spring.CreateUnit("voidstalker_warpring",vars.baseState.baseX ,vars.baseState.baseY,vars.baseState.baseZ, math.random(0,3), gaiaTeamId   )
+	Spring.GiveOrderToUnit(vars.baseState.baseUnitId, CMD.IDLEMODE, { 0 }, { "shift" })
+	Spring.GiveOrderToUnit(vars.baseState.baseUnitId, CMD.PATROL, {vars.baseState.baseX-200,vars.baseState.baseY,vars.baseState.baseZ-200},{})
 	Spring.SetUnitAlwaysVisible(vars.baseState.baseUnitId,true)	
 	--Spring.SetUnitLosMask(vars.baseState.baseUnitId,vars.teamAllyTeamId,{los=true,radar=true}) 
 	Spring.SetUnitLosState(vars.baseState.baseUnitId,vars.teamAllyTeamId,{los=true, prevLos=true, contRadar=true, radar=true}) 
@@ -534,6 +539,7 @@ function HandleBaseDaySpawnCycle()
 	
 end
 
+--[[
 function HandleVoidDaySpawnCycle()
 	
 	if Spring.GetGameFrame() % 5 ~= 0 then return end
@@ -548,9 +554,78 @@ function HandleVoidDaySpawnCycle()
 	
 
 end
+]]
+
+function HandleVoidDaySpawnCycle()
+	
+	if Spring.GetGameFrame() % 15 ~= 0 then return end
+
+	local unitId = 0
+	
+	--unitId = Spring.CreateUnit("voidstalker_ghost", newX, Spring.GetGroundHeight(newX, newZ) , newZ, math.random(0,3), vars.voidState.voidstalkersTeamId )
+	--Spring.GiveOrderToUnit(unitId ,CMD.PATROL,{missionX,missionY,missionZ}, {})
+	local temp_angle = math.random() * math.pi
+	local nx = 1000 * math.cos( temp_angle * math.pi * 2)
+	local nz = 1000 * math.sin( temp_angle * math.pi * 2)
+	
+	for teamId,commId in pairs(vars.teamCommanderUnitIds) do	
+		local bx,by,bz = Spring.GetUnitPosition(commId)
+		VoidEcho("unit team id location, ",teamId, commId, bx,by,bz)
+		--Spring.CreateUnit("voidstalker_gate", cx + nx, 100, cz + nz, math.random(0,3), 1,false,true )
+		unitId = Spring.CreateUnit("voidstalker_ghost", bx + nx, Spring.GetGroundHeight(bx + nx, bz + nz) , bz + nz, math.random(0,3), 1 )
+		--Spring.SetUnitTarget(unit_id, commander_unit_id )
+		Spring.GiveOrderToUnit(unitId , CMD.FIGHT,commId, {})
+		--Spring.SetUnitTarget(unit_id, commander_unit_id )
+	end
+
+end
+
+function HandleVoidCrystalSpawn()
+	
+	local unitId = 0
+
+	for i=1, 20 do
+		randomX = math.random(-1000,1000)
+		randomZ = math.random(-1000,1000)
+		unitId = Spring.CreateUnit("voidstalker_voidcrystal_level_1", vars.baseState.baseX+randomX, Spring.GetGroundHeight(vars.baseState.baseX+randomX, vars.baseState.baseZ+randomZ) , vars.baseState.baseZ+randomZ, math.random(0,3), vars.baseState.gaiaTeamId )
+		Spring.SetUnitAlwaysVisible(unitId,true)
+		Spring.SetUnitLosState(unitId,vars.teamAllyTeamId,{los=true, prevLos=true, contRadar=true, radar=true}) 	
+		Spring.SetUnitNeutral(unitId,true)
+	end
+
+end
+
+function HandleVoidSpawnFromCrystalBreak(inArgs)
+	--Need to know where the crystal broke
+	--What level it is
+	--What rarity it is
+
+	local crystalX, crystalY, crystalZ = Spring.GetUnitPosition(inArgs.crystalUnitId)
+
+	Spring.Echo("crystal broke at",inArgs.crystalUnitId,crystalX,crystalY,crystalZ)
+
+	local bx,by,bz 
+	local nx,ny,nz
+	for i=1, 200 do
+		bx,by,bz = Spring.GetUnitPosition(inArgs.crystalUnitId)
+		nx,ny,nz = unpack({math.random(-200,200), math.random(-200,200), math.random(-200,200)})
+		unitId = Spring.CreateUnit("voidstalker_ghost", bx + nx, Spring.GetGroundHeight(bx + nx, bz + nz) , bz + nz, math.random(0,3), 1 )
+		Spring.GiveOrderToUnit(unitId , CMD.FIGHT,vars.baseState.baseUnitId, {})
+		--Spring.GiveOrderToUnit(unitId , CMD.FIGHT,{vars.baseState.baseX,vars.baseState.baseY,vars.baseState.baseZ}, {})
+	end
 
 
 
+end
+
+
+function HandleCheckIfVoidCrystalDestroyed(inArgs)
+
+	if UnitDefs[inArgs.unitDefId].name == "voidstalker_voidcrystal_level_1" then
+		HandleVoidSpawnFromCrystalBreak({crystalUnitId = inArgs.unitId})
+	end
+
+end
 
 ---------------
 -- SYNCED CALLINS
@@ -583,9 +658,10 @@ function gadget:GamePreload()
 	VoidEcho("GamePreload...")
 	-- Spawn in commander archons (timed event)
 	--systems.AddTimedEvent(90,systems.SpawnCommanderArchons)
-	HandleMapTerraform()
+	--HandleMapTerraform()
 	--HandleGlobalLOS()
 	HandleBaseSpawn()
+	HandleVoidCrystalSpawn()
 	HandleMissionGamePreload()
 	HandleVoidSpawnPointCalculation()
 	HandleBaseSpawnPointCalculation()
@@ -615,8 +691,8 @@ function gadget:GameFrame(inFrame)
 	-- HandleDayNightCycle
 	-- HandleDayNightNormalEvents
 	-- HandleDayNightRandomEvents
-	HandleBaseDaySpawnCycle()
-	HandleVoidDaySpawnCycle()
+	-- HandleBaseDaySpawnCycle()
+	-- HandleVoidDaySpawnCycle()
 	-- HandleBaseDuskSpawnCycle
 	-- HandleVoidDuskSpawnCycle
 	-- HandleBaseNightSoawnCycle
@@ -694,7 +770,10 @@ end
 function gadget:UnitDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, weaponID, projectileID, attackerID, attackerDefID, attackerTeam) end
 function gadget:UnitFromFactory(unitID, unitDefID, unitTeam, factID, factDefID, userOrders) end
 function gadget:UnitFinished(unitID, unitDefID, unitTeam) end
-function gadget:UnitDestroyed(unitID, unitDefID, unitTeam, attackerID) end
+function gadget:UnitDestroyed(unitID, unitDefID, unitTeam, attackerID)
+		HandleCheckIfVoidCrystalDestroyed({unitId = unitID, unitDefId = unitDefID, unitTeam = unitTeam, attackerId = attackerID})
+
+end
 function gadget:UnitTaken(unitID, unitDefID, oldTeam, newTeam) end
 function gadget:AllowUnitTransfer(unitID, unitDefID, oldTeam, newTeam, capture) end
 
