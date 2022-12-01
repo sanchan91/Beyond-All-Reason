@@ -79,16 +79,151 @@ VoidEcho("Voidstalkers unsynced is online!")
 -- TESTING STUFF
 local arm_peewee = {type = 0,  action = "buildunit_armpw", id = -UnitDefNames["armpw"].id, tooltip = "This is a custom tooltip", cursor = "armpw", showUnique = true, params = {1}, name = "armpw", onlyTexture = true, disabled = false, hidden = false, queueing = false, texture = "" }
 	
+------
+-- Variables
+
+local vars = {}
+vars.atmosphereState = {}
+
 
 ----------------
 -- UNSYNCED LOGIC
 
+local function GetLightingAndAtmosphere()  -- from map_atmosphere_cegs.lua - returns a table of the common parameters
+	local res =  {
+		lighting = {
+			groundAmbientColor =  {gl.GetSun("ambient")},
+			groundDiffuseColor =  {gl.GetSun("diffuse")},
+			groundSpecularColor =  {gl.GetSun("specular")},
+			
+			unitAmbientColor =  {gl.GetSun("ambient","unit")},
+			unitDiffuseColor =  {gl.GetSun("diffuse","unit")},
+			unitSpecularColor =  {gl.GetSun("specular","unit")},
+			
+			groundShadowDensity = gl.GetSun("shadowDensity"),
+			modelShadowDensity = gl.GetSun("shadowDensity","unit"),
+		},
+		atmosphere = {
+			skyColor = {gl.GetAtmosphere("skyColor")},
+			sunColor = {gl.GetAtmosphere("sunColor")},
+			cloudColor = {gl.GetAtmosphere("cloudColor")},
+			fogColor = {gl.GetAtmosphere("fogColor")},
+			fogStart = gl.GetAtmosphere("fogStart"),
+			fogEnd = gl.GetAtmosphere("fogEnd"),
+		},
+		sunDir = {gl.GetSun("pos")},
+	}
+	return res
+end
 
+local function GetStartingLightingAndAtmosphere()
+
+	return table.copy(vars.atmosphereState.starting)
+end
+
+
+function VoidSetDarkFromHaunt(_)
+	
+	VoidEcho("VoidSetDarkFromHaunt")
+	--local atmosphere_object = GetLightingAndAtmosphere()
+	local atmosphere_object = GetStartingLightingAndAtmosphere()
+	--atmosphere_object.atmosphere = {}
+	--atmosphere_object.lighting = {}
+
+	--atmosphere_object.sunDir = {0,-1,0}
+
+	atmosphere_object.atmosphere.skyColor = {0,0,0}		
+	atmosphere_object.atmosphere.sunColor = {0,0,0}
+	atmosphere_object.atmosphere.cloudColor = {0,0,0}
+	atmosphere_object.atmosphere.fogColor = {0,0,0}
+	atmosphere_object.atmosphere.fogStart = 1
+	atmosphere_object.atmosphere.fogEnd = 1.2
+
+	atmosphere_object.lighting.groundAmbientColor = {0.2,0.2,0.2}
+	atmosphere_object.lighting.groundDiffuseColor = {0.2,0.2,0.2}
+	atmosphere_object.lighting.groundSpecularColor = {0.2,0.2,0.2}
+	atmosphere_object.lighting.unitAmbientColor = {0.2,0.2,0.2}
+	atmosphere_object.lighting.unitDiffuseColor = {0.2,0.2,0.2}
+	atmosphere_object.lighting.unitSpecularColor = {0.2,0.2,0.2}
+	atmosphere_object.lighting.groundShadowDensity = 0.89999998
+	atmosphere_object.lighting.modelShadowDensity = 0.89999998
+
+	Spring.Debug.TableEcho(atmosphere_object)
+	
+
+	--[[
+
+	atmosphere_object.sunDir = {-0.7534609,0.55060601,-0.3593429}
+	
+	--atmosphere_object.atmosphere.skyColor = {0.42879999,0.58016002,0.63999999}
+	atmosphere_object.atmosphere.sunColor = {1,0.92000002,0.77999997}
+	--atmosphere_object.atmosphere.cloudColor = {0.89999998,0.89999998,0.89999998}
+	--atmosphere_object.atmosphere.fogColor = {0.80000001,0.80000001,0.5}
+	atmosphere_object.atmosphere.fogStart = 1
+	atmosphere_object.atmosphere.fogEnd = 1.2
+
+	--atmosphere_object.lighting.groundAmbientColor = {0.51999998,0.50959998,0.50959998}
+	atmosphere_object.lighting.groundDiffuseColor = {1,1,1}
+	atmosphere_object.lighting.groundSpecularColor = {0.60000002,0.5,0.5}
+	--atmosphere_object.lighting.unitAmbientColor = {0.51999998,0.50959998,0.50959998}
+	atmosphere_object.lighting.unitDiffuseColor = {1,0.98533332,0.92000002}
+	atmosphere_object.lighting.unitSpecularColor = {0.80000001,0.60000002,0.60000002}
+	atmosphere_object.lighting.groundShadowDensity = 0.89999998
+	atmosphere_object.lighting.modelShadowDensity = 0.89999998
+
+
+	--SendToUnsynced("SetLightingAndAtmosphere",atmosphere_object)
+	]]
+	Spring.SetAtmosphere(atmosphere_object.atmosphere) 
+	Spring.SetSunLighting(atmosphere_object.lighting)
+	Spring.SetSunDirection(atmosphere_object.sunDir[1], atmosphere_object.sunDir[2], atmosphere_object.sunDir[3] )
+
+end
+
+function VoidSetLightFromHauntFinish(_)
+	VoidEcho("VoidSetLightFromHauntFinish ")
+
+	local atmosphere_object = GetStartingLightingAndAtmosphere()
+
+	Spring.Debug.TableEcho(atmosphere_object)
+	
+
+	Spring.SetAtmosphere(atmosphere_object.atmosphere) 
+	Spring.SetSunLighting(atmosphere_object.lighting)
+	Spring.SetSunDirection(atmosphere_object.sunDir[1], atmosphere_object.sunDir[2], atmosphere_object.sunDir[3] )
+	VoidEcho("VoidSetLightFromHauntFinish done!")
+end
 ----------------
 -- UNSYNCED CALLINS
 
+function HandleSaveStartingAtmosphere()
+	VoidEcho("saving atmosphere starting values")
+	vars.atmosphereState.starting = GetLightingAndAtmosphere()
+
+	Spring.Debug.TableEcho(vars.atmosphereState.starting)
+
+end
+
+function HandleAddSyncActions()
+	gadgetHandler:AddSyncAction("VoidSetDarkFromHaunt", VoidSetDarkFromHaunt)
+	gadgetHandler:AddSyncAction("VoidSetLightFromHauntFinish", VoidSetLightFromHauntFinish)
+end
+
+function HandleRemoveSyncActions()
+	gadgetHandler:RemoveSyncAction("VoidSetDarkFromHaunt")
+	gadgetHandler:RemoveSyncAction("VoidSetLightFromHauntFinish")
+end
+
 -- GAME STARTUP AND END
-function gadget:Initialize() end
+function gadget:Initialize()
+	HandleSaveStartingAtmosphere()
+	HandleAddSyncActions()
+	
+end
+
+function gadget:Shutdown()
+	HandleRemoveSyncActions()
+end
 
 function gadget:GamePreload() end
 

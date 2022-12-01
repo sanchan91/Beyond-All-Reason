@@ -108,7 +108,7 @@ vars.teamAllyTeamId = {}
 -- ... remember that a mod option can turn on experimental scav units
 -- ... unless I come up with another way some day
 vars.archonRewardPools = {}
-vars.voidState = {}
+vars.voidState = {haunting = false, hauntSpawnCount = 0, hauntGuardianId = 0}
 vars.baseState = {}
 
 -- Main Loop
@@ -144,6 +144,73 @@ utilities.AddTimedEvent = function(inFrameTime,inEventFunction)
 	--insert the event into the timed event queue
 	table.insert(mainLoopTimedEvents[repeatFrame] , inEventFunction)
 end
+
+utilities.SetDarkAtmosphere = function()
+
+	VoidEcho("Voidstalkers execute_map_atmosphere ")
+	--SendToUnsynced("MapAtmosphereConfigSetSun", 1, 2, 1, 1, 1)
+	-- MapAtmosphereConfigSetSun(_, targetbrightness, transitionspeed, redlevel, greenlevel, bluelevel, sundir)
+	--SendToUnsynced("MapAtmosphereConfigSetSun", 0.0, 1, 0.0, 0.0, 0.0)
+	SendToUnsynced("VoidSetDarkFromHaunt")
+	return
+	--[[
+	VoidEcho("Voidstalkers execute_map_atmosphere ")
+	--local atmosphere_object = GetLightingAndAtmosphere()
+	local atmosphere_object = {}
+	atmosphere_object.atmosphere = {}
+	atmosphere_object.lighting = {}
+
+	Spring.Debug.TableEcho(atmosphere_object)
+	
+	atmosphere_object.sunDir = {0,-1,0}
+
+	atmosphere_object.atmosphere.skyColor = {0,0,0}		
+	atmosphere_object.atmosphere.sunColor = {0,0,0}
+	atmosphere_object.atmosphere.cloudColor = {0,0,0}
+	atmosphere_object.atmosphere.fogColor = {0,0,0}
+	atmosphere_object.atmosphere.fogStart = 1
+	atmosphere_object.atmosphere.fogEnd = 1.2
+
+	atmosphere_object.lighting.groundAmbientColor = {0,0,0}
+	atmosphere_object.lighting.groundDiffuseColor = {0,0,0}
+	atmosphere_object.lighting.groundSpecularColor = {0,0,0}
+	atmosphere_object.lighting.unitAmbientColor = {0,0,0}
+	atmosphere_object.lighting.unitDiffuseColor = {0,0,0}
+	atmosphere_object.lighting.unitSpecularColor = {0,0,0}
+	atmosphere_object.lighting.groundShadowDensity = 0.89999998
+	atmosphere_object.lighting.modelShadowDensity = 0.89999998
+
+	--
+
+	atmosphere_object.sunDir = {-0.7534609,0.55060601,-0.3593429}
+	
+	--atmosphere_object.atmosphere.skyColor = {0.42879999,0.58016002,0.63999999}
+	atmosphere_object.atmosphere.sunColor = {1,0.92000002,0.77999997}
+	--atmosphere_object.atmosphere.cloudColor = {0.89999998,0.89999998,0.89999998}
+	--atmosphere_object.atmosphere.fogColor = {0.80000001,0.80000001,0.5}
+	atmosphere_object.atmosphere.fogStart = 1
+	atmosphere_object.atmosphere.fogEnd = 1.2
+
+	--atmosphere_object.lighting.groundAmbientColor = {0.51999998,0.50959998,0.50959998}
+	atmosphere_object.lighting.groundDiffuseColor = {1,1,1}
+	atmosphere_object.lighting.groundSpecularColor = {0.60000002,0.5,0.5}
+	--atmosphere_object.lighting.unitAmbientColor = {0.51999998,0.50959998,0.50959998}
+	atmosphere_object.lighting.unitDiffuseColor = {1,0.98533332,0.92000002}
+	atmosphere_object.lighting.unitSpecularColor = {0.80000001,0.60000002,0.60000002}
+	atmosphere_object.lighting.groundShadowDensity = 0.89999998
+	atmosphere_object.lighting.modelShadowDensity = 0.89999998
+
+
+	--SendToUnsynced("SetLightingAndAtmosphere",atmosphere_object)
+
+	Spring.SetAtmosphere(lightandatmos.atmosphere) 
+	Spring.SetSunLighting(lightandatmos.lighting)
+	Spring.SetSunDirection(lightandatmos.sunDir[1], lightandatmos.sunDir[2], lightandatmos.sunDir[3] )
+	]]
+
+	
+end
+
 -------------------------
 -- "Archon Abilities" - these are actually just systems but named so I can remember that they link to a thing
 -- before getting too existed, the ability names are actually unit names that get InsertUnitCmdDesc to the archon
@@ -229,6 +296,7 @@ abilities.CallArchonAbility = function(inAbilityName,inUnitTeamId)
 	--  decrease by 1, but if 0 , set it to disabled
 
 end
+
 
 
 
@@ -587,7 +655,7 @@ function HandleVoidCrystalSpawn()
 	for i=1, 20 do
 		randomX = math.random(-1000,1000)
 		randomZ = math.random(-1000,1000)
-		unitId = Spring.CreateUnit("voidstalker_voidcrystal_level_1", vars.baseState.baseX+randomX, Spring.GetGroundHeight(vars.baseState.baseX+randomX, vars.baseState.baseZ+randomZ) , vars.baseState.baseZ+randomZ, math.random(0,3), vars.baseState.gaiaTeamId )
+		unitId = Spring.CreateUnit("voidstalker_voidcrystal_level_1", vars.baseState.baseX+randomX, Spring.GetGroundHeight(vars.baseState.baseX+randomX, vars.baseState.baseZ+randomZ) , vars.baseState.baseZ+randomZ, math.random(0,3), vars.voidState.voidstalkersTeamId )
 		Spring.SetUnitAlwaysVisible(unitId,true)
 		Spring.SetUnitLosState(unitId,vars.teamAllyTeamId,{los=true, prevLos=true, contRadar=true, radar=true}) 	
 		Spring.SetUnitNeutral(unitId,true)
@@ -595,6 +663,7 @@ function HandleVoidCrystalSpawn()
 
 end
 
+--[[
 function HandleVoidSpawnFromCrystalBreak(inArgs)
 	--Need to know where the crystal broke
 	--What level it is
@@ -617,15 +686,101 @@ function HandleVoidSpawnFromCrystalBreak(inArgs)
 
 
 end
+]]
 
+function HandleVoidCrystalDestroyed(inArgs)
 
-function HandleCheckIfVoidCrystalDestroyed(inArgs)
+	-- if a crystal is destroyed for the first time, that location is where the haunt will start and continue
+	-- if there is a current haunt happening and another crystal is broken, then just add to the current haunt such that it spawns more stuff
+	-- The Theory here is that players will have their defenses and units setup where they want, and I want them to chain break some crystals
+	-- but if the haunt starts from various places, it gets real annoying to move the army around to defend. 
+	-- YES IT MAKES MORE SENSE for the haunt to spawn from the various crystal break locations, but lets try this idea first
 
-	if UnitDefs[inArgs.unitDefId].name == "voidstalker_voidcrystal_level_1" then
-		HandleVoidSpawnFromCrystalBreak({crystalUnitId = inArgs.unitId})
+	
+
+	if UnitDefs[inArgs.unitDefId].name ~= "voidstalker_voidcrystal_level_1" then return end
+	
+	VoidEcho("crystal destroyed")
+
+	-- If this is the first time, mark the location
+	
+
+	if vars.voidState.haunting == false then
+		local x,y,z = Spring.GetUnitPosition(inArgs.unitId)
+		vars.voidState.haunting = true
+		vars.voidState.hauntSpawnPosition = {Spring.GetUnitPosition(inArgs.unitId)}
+		vars.voidState.hauntSpawnFrame = Spring.GetGameFrame() + 60
+		utilities.SetDarkAtmosphere()
+		local unitId = Spring.CreateUnit("voidstalker_voidcrystal_guardian", x, Spring.GetGroundHeight(x, z) , z, math.random(0,3), vars.voidState.voidstalkersTeamId)
+		Spring.GiveOrderToUnit(unitId , CMD.FIGHT,vars.baseState.baseUnitId, {})
+		vars.voidState.hauntGuardianId = unitId
 	end
 
+	-- add to the spawn counter based on planet level, crystal level, crystal rarity
+	--vars.voidState.hauntSpawnCount = vars.voidState.hauntSpawnCount + 100 
+	vars.voidState.hauntSpawnPerWave = 10
+	vars.voidState.hauntSpawnFrameAdd = 15
+	
+	-- add to the stregth matrix based on planet level, crystal level, crystal rarity
+	vars.voidState.hauntSpawnStrength = 1
+
+	VoidEcho("haunt info ", vars.voidState.hauntSpawnPerWave )
+		
+
 end
+
+function HandleVoidHauntRunning(inArgs)
+	-- Check if there is void to be spawned in the current crystal break event, aka, haunt
+
+	if vars.voidState.haunting == false then return end
+
+	if vars.voidState.hauntSpawnFrame > inArgs.frame then return end
+	
+	local bx,by,bz = unpack(vars.voidState.hauntSpawnPosition)
+	local nx,ny,nz
+	local unitId
+
+	VoidEcho("haunt spawn per wave ",vars.voidState.hauntSpawnPerWave)
+	for i=1, vars.voidState.hauntSpawnPerWave do
+		nx,ny,nz = unpack({math.random(-200,200), math.random(-200,200), math.random(-200,200)})
+		unitId = Spring.CreateUnit("voidstalker_ghost", bx + nx, Spring.GetGroundHeight(bx + nx, bz + nz) , bz + nz, math.random(0,3), vars.voidState.voidstalkersTeamId)
+		Spring.GiveOrderToUnit(unitId , CMD.FIGHT,vars.baseState.baseUnitId, {})
+	end
+
+	--vars.voidState.hauntSpawnCount = vars.voidState.hauntSpawnCount - vars.voidState.hauntSpawnPerWave
+
+	vars.voidState.hauntSpawnFrame = inArgs.frame + vars.voidState.hauntSpawnFrameAdd
+
+	--if vars.voidState.hauntSpawnCount > 0 then return end
+
+	--vars.voidState.hauntSpawnCount = 0
+	--vars.voidState.haunting = false
+	
+	--spawn final voidcrystal guardian to take down
+	--nx,ny,nz = unpack({math.random(-200,200), math.random(-200,200), math.random(-200,200)})
+	--unitId = Spring.CreateUnit("voidstalker_voidcrystal_guardian", bx + nx, Spring.GetGroundHeight(bx + nx, bz + nz) , bz + nz, math.random(0,3), vars.voidState.voidstalkersTeamId)
+	--Spring.GiveOrderToUnit(unitId , CMD.FIGHT,vars.baseState.baseUnitId, {})
+	--vars.voidState.hauntGuardianId = unitId
+	
+
+
+end
+
+function HandleVoidHauntDone(inArgs)
+	
+end
+
+function HandleVoidCrystalGuardianDestroyed(inArgs)
+
+	if inArgs.unitId ~= vars.voidState.hauntGuardianId then return end
+	
+	vars.voidState.haunting = false
+
+	VoidEcho("guardian destroyed, haunt stopped")
+
+	SendToUnsynced("VoidSetLightFromHauntFinish")
+end
+
 
 ---------------
 -- SYNCED CALLINS
@@ -662,9 +817,9 @@ function gadget:GamePreload()
 	--HandleGlobalLOS()
 	HandleBaseSpawn()
 	HandleVoidCrystalSpawn()
-	HandleMissionGamePreload()
-	HandleVoidSpawnPointCalculation()
-	HandleBaseSpawnPointCalculation()
+	-- HandleMissionGamePreload()
+	-- HandleVoidSpawnPointCalculation()
+	-- HandleBaseSpawnPointCalculation()
 
 
 	--local voidstate = Spring.GetGameRulesParam('voidstateSave_player0')
@@ -702,8 +857,9 @@ function gadget:GameFrame(inFrame)
 	-- HandleMissionProgress
 	-- HandleMissionCompletion
 	-- HandleMissionStats
-	-- HandleFrameTimedEvents
-
+	HandleVoidHauntRunning({frame = inFrame})
+	HandleVoidHauntDone()
+	
 end
 
 
@@ -771,8 +927,8 @@ function gadget:UnitDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, weap
 function gadget:UnitFromFactory(unitID, unitDefID, unitTeam, factID, factDefID, userOrders) end
 function gadget:UnitFinished(unitID, unitDefID, unitTeam) end
 function gadget:UnitDestroyed(unitID, unitDefID, unitTeam, attackerID)
-		HandleCheckIfVoidCrystalDestroyed({unitId = unitID, unitDefId = unitDefID, unitTeam = unitTeam, attackerId = attackerID})
-
+	HandleVoidCrystalDestroyed({unitId = unitID, unitDefId = unitDefID, unitTeam = unitTeam, attackerId = attackerID})
+	HandleVoidCrystalGuardianDestroyed({unitId = unitID, unitDefId = unitDefID, unitTeam = unitTeam, attackerId = attackerID})
 end
 function gadget:UnitTaken(unitID, unitDefID, oldTeam, newTeam) end
 function gadget:AllowUnitTransfer(unitID, unitDefID, oldTeam, newTeam, capture) end
